@@ -1,0 +1,25 @@
+{
+  "name": "sharedstreets-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "antd": "^2.12.6",
+    "d3-request": "^1.0.5",
+    "deck.gl": "^4.1.0",
+    "immutable": "^3.8.1",
+    "jsts": "./jsts-1.1.2.tgz",
+    "luma.gl": "^4.0.1",
+    "mapbox-gl": "^0.41.0",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "react-map-gl": "^3.0.0",
+    "react-scripts": "1.0.11",
+    "underscore": "^1.8.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  }
+}
