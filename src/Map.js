@@ -6,6 +6,9 @@ import { map as _map} from 'underscore';
 import { filter as _filter} from 'underscore';
 import { first as _first} from 'underscore';
 import { last as _last} from 'underscore';
+import helpers from "@turf/helpers";
+import lineOffset from "@turf/line-offset";
+import destination from "@turf/destination"
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHJhbnNwb3J0cGFydG5lcnNoaXAiLCJhIjoiY2oyZ2R1aTk2MDdteDMyb2dibXpuMjdweiJ9.RtukedapVNqEAsYU-f1Vaw';
 
@@ -42,7 +45,7 @@ export default class Map extends React.Component {
                   'stops': [[12, 1], [22, 20]]
               },
               // color circles by ethnicity, using data-driven styles
-              'circle-color':"#ccccff",
+              'circle-color':"#9999cc",
               'circle-opacity': 1.0
           },
         minzoom: 12,
@@ -53,6 +56,8 @@ export default class Map extends React.Component {
       this.map.on('click', 'intersections', (e) => {
         this.showIntersectionDetail(e.features[0].properties.id)
       });
+
+
     } else if(this.map.getLayer("intersections")) {
 
     }
@@ -63,7 +68,7 @@ export default class Map extends React.Component {
 
     var intersectionDetailData = {"type" : "FeatureCollection", "features": []};
 
-    if(!this.map.getLayer("intersection-detail")) {
+    if(!this.map.getLayer("intersection-detail-outbound-arrow")) {
 
       this.map.addSource("intersection-detail-data", {
          "type": "geojson",
@@ -71,50 +76,155 @@ export default class Map extends React.Component {
       });
 
       this.map.addLayer({
-        "id": "intersection-detail",
+        "id": "intersection-detail-outbound-arrow",
+        "type": "fill",
+        "source": "intersection-detail-data",
+        "paint": {
+              'fill-color':"#cc9999",
+              'fill-opacity': 0.75,
+          },
+        "filter": ["==", "type", "outbound-arrow"],
+        minzoom: 12,
+      });
+
+      this.map.addLayer({
+        "id": "intersection-detail-inbound-arrow",
+        "type": "fill",
+        "source": "intersection-detail-data",
+        "paint": {
+              'fill-color':"#9999cc",
+              'fill-opacity': 0.75
+              //'circle-opacity': 1.0
+              // 'line-color':"#9999cc",
+              // 'line-opacity': 1.0,
+              // 'line-width' : 2.0,
+              // 'line-dasharray' : [1.0,0.5]
+          },
+        "filter": ["==", "type", "inbound-arrow"],
+        minzoom: 12,
+      });
+
+
+      this.map.addLayer({
+        "id": "intersection-detail-inbound-line",
         "type": "line",
         "source": "intersection-detail-data",
         "paint": {
-
-              // color circles by ethnicity, using data-driven styles
-              'line-color':"#ccccff",
-              'line-opacity': 1.0,
-              'line-width' : 5.0,
-              'line-dasharray' : [2,2]
+              'line-color':"#9999cc",
+              'line-opacity': 0.75,
+              'line-width' : 2.0,
+              'line-dasharray' : [1.0,0.5]
           },
+        "filter": ["==", "type", "inbound-line"],
+        minzoom: 12,
+      });
+
+
+      this.map.addLayer({
+        "id": "intersection-detail-outbound-line",
+        "type": "line",
+        "source": "intersection-detail-data",
+        "paint": {
+              'line-color':"#cc9999",
+              'line-opacity': 0.75,
+              'line-width' : 2.0,
+              'line-dasharray' : [1.0,0.5]
+          },
+        "filter": ["==", "type", "outbound-line"],
         minzoom: 12,
       });
     }
 
-    var keyedData = this.keyedData;
-
-    if(keyedData[intersectionId].outbound) {
-      keyedData[intersectionId].outbound.forEach(outboundId => {
-          intersectionDetailData.features.push(this.generateReferenceGeometry(outboundId));
-      });
-    }
-
+    var intersectionDetailData = this.generateIntersectionDetail(intersectionId);
     this.map.getSource('intersection-detail-data').setData(intersectionDetailData)
 
   }
+  //
+  // showAllIntersectionDetail() {
+  //   if(!this.map.getLayer("intersection-detail")) {
+  //
+  //     this.map.addSource("intersection-detail-data", {
+  //        "type": "geojson",
+  //        "data": intersectionDetailData
+  //     });
+  //
+  //
+  //   }
 
-  generateReferenceGeometry(referenceId) {
+  //   var keyedData = this.keyedData;
+  //
+  //   for(var intersectionId in keyedData) {
+  //     var intersectionDetailData = this.generateIntersectionDetail(intersectionId);
+  //     this.map.getSource('intersection-detail-data').setData(intersectionDetailData)
+  //
+  //   }
+  // }
 
-    var intersectionDetailData = {"type" : "Feature", "properties": {}, "geometry":{ "type": "GeometryCollection","geometries": []}};
+  generateIntersectionDetail(intersectionId) {
+
+    var keyedData = this.keyedData;
+
+    var  features = []
+
+    if(keyedData[intersectionId].outbound) {
+      keyedData[intersectionId].outbound.forEach(outboundId => {
+          var subFeatures = this.generateReferenceGeometries(outboundId, "outbound");
+
+          if(subFeatures && subFeatures.length > 0)
+            Array.prototype.push.apply(features, subFeatures);
+
+
+      });
+    }
+
+    if(keyedData[intersectionId].inbound) {
+      keyedData[intersectionId].inbound.forEach(inboundId => {
+          var subFeatures =  this.generateReferenceGeometries(inboundId, "inbound");
+          if(subFeatures && subFeatures.length > 0)
+            Array.prototype.push.apply(features, subFeatures);
+      });
+    }
+
+    var intersectionFeatureCollection = helpers.featureCollection(features);
+    return intersectionFeatureCollection;
+  }
+
+  generateReferenceGeometries(referenceId, direction) {
+
     var keyedData = this.keyedData;
 
     var reference = keyedData[referenceId].data;
 
-    var locationReferenceLine = {"type" : "LineString", "coordinates": []};
+    var lineCoordinates = [];
     reference.locationReferences.forEach(locationReference => {
-      locationReferenceLine.coordinates.push(locationReference.point);
+      lineCoordinates.push(locationReference.point);
     });
 
-    intersectionDetailData.geometry.geometries.push(locationReferenceLine);
-    return intersectionDetailData;
+    try {
+      var line = helpers.lineString(lineCoordinates);
+      var offsetLine = lineOffset(line, 2, "meters");
 
+      var bearing = reference.locationReferences[0].bearing > 180 ? reference.locationReferences[0].bearing - 360 : reference.locationReferences[0].bearing;
+
+      var bearingPoint1 = destination(helpers.point(reference.locationReferences[0].point), 0.02, bearing, "kilometers");
+      var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.002, bearing + 90, "kilometers");
+      var bearingPoint3 = destination(helpers.point(reference.locationReferences[0].point), 0.002, bearing - 90, "kilometers");
+
+      var arrowCoords  = [[bearingPoint1.geometry.coordinates, bearingPoint2.geometry.coordinates, bearingPoint3.geometry.coordinates, bearingPoint1.geometry.coordinates]];
+      var bearingArrow = helpers.polygon(arrowCoords);
+
+      var features = []
+
+      features.push(helpers.feature(bearingArrow.geometry, {"id" : referenceId, "type": direction + "-arrow"}));
+      features.push(helpers.feature(offsetLine.geometry, {"id" : referenceId, "type": direction + "-line"}));
+
+      return features;
+    }
+    catch (exception){
+      return null;
+    }
   }
-s
+
   addTile(tileId) {
 
     if(this.keyedData == undefined)
@@ -129,7 +239,7 @@ s
 
       this.tilesLoaded[tileId] = true;
 
-      requestJson('./data/nyc_test_tiles/reference/' + tileId + '.reference.geojson', (error, response) => {
+      requestJson('./data/nyc_core/reference/' + tileId + '.reference.json', (error, response) => {
         if (!error) {
             response.forEach((item) => {
 
@@ -140,6 +250,14 @@ s
 
               var outboundIntersecionId = item.locationReferences[0].intersectionId;
               var inboundIntersecionId = item.locationReferences[item.locationReferences.length - 1].intersectionId;
+
+              if(outboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
+                console.log('9dVpcxMxmtoBXBgHmLDTXj');
+              }
+
+              if(inboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
+                console.log('9dVpcxMxmtoBXBgHmLDTXj');
+              }
 
               if(keyedData[outboundIntersecionId] == undefined)
                 keyedData[outboundIntersecionId] = {};
@@ -158,15 +276,22 @@ s
               keyedData[inboundIntersecionId].inbound.push(item.id);
 
             });
+
+            //this.showAllIntersectionDetail();
         }
       });
 
-      requestJson('./data/nyc_test_tiles/intersection/' + tileId + '.intersection.geojson', (error, response) => {
+      requestJson('./data/nyc_core/intersection/' + tileId + '.intersection.json', (error, response) => {
         if (!error) {
 
             this.mapIntersectionData = response;
 
             response.features.forEach((item) => {
+
+              if(item.properties.id == '9dVpcxMxmtoBXBgHmLDTXj') {
+                console.log('9dVpcxMxmtoBXBgHmLDTXj');
+              }
+
 
               if(keyedData[item.properties.id] == undefined)
                 keyedData[item.properties.id] = {};
