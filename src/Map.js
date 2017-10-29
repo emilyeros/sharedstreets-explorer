@@ -42,7 +42,7 @@ export default class Map extends React.Component {
               // make circles larger as the user zooms from z12 to z22
               'circle-radius': {
                   'base': 1.0,
-                  'stops': [[12, 1], [22, 20]]
+                  'stops': [[12, 1], [22, 15]]
               },
               // color circles by ethnicity, using data-driven styles
               'circle-color':"#9999cc",
@@ -139,51 +139,49 @@ export default class Map extends React.Component {
     this.map.getSource('intersection-detail-data').setData(intersectionDetailData)
 
   }
-  //
-  // showAllIntersectionDetail() {
-  //   if(!this.map.getLayer("intersection-detail")) {
-  //
-  //     this.map.addSource("intersection-detail-data", {
-  //        "type": "geojson",
-  //        "data": intersectionDetailData
-  //     });
-  //
-  //
-  //   }
 
-  //   var keyedData = this.keyedData;
-  //
-  //   for(var intersectionId in keyedData) {
-  //     var intersectionDetailData = this.generateIntersectionDetail(intersectionId);
-  //     this.map.getSource('intersection-detail-data').setData(intersectionDetailData)
-  //
-  //   }
-  // }
 
-  generateIntersectionDetail(intersectionId) {
+  generateIntersectionDetail(id) {
 
     var keyedData = this.keyedData;
+    var showInbound = true;
+    var ids = []
+    if(!id) {
+      for(var intersectionId in keyedData) {
+        ids.push(intersectionId);
+        // only show outbound for complete map
+        showInbound = false;
+      }
+    }
+    else {
+      ids.push(id);
+    }
 
     var  features = []
 
-    if(keyedData[intersectionId].outbound) {
-      keyedData[intersectionId].outbound.forEach(outboundId => {
-          var subFeatures = this.generateReferenceGeometries(outboundId, "outbound");
-
-          if(subFeatures && subFeatures.length > 0)
-            Array.prototype.push.apply(features, subFeatures);
+    ids.forEach(intersectionId => {
 
 
-      });
-    }
 
-    if(keyedData[intersectionId].inbound) {
-      keyedData[intersectionId].inbound.forEach(inboundId => {
-          var subFeatures =  this.generateReferenceGeometries(inboundId, "inbound");
-          if(subFeatures && subFeatures.length > 0)
-            Array.prototype.push.apply(features, subFeatures);
-      });
-    }
+      if(keyedData[intersectionId].outbound) {
+        keyedData[intersectionId].outbound.forEach(outboundId => {
+            var subFeatures = this.generateReferenceGeometries(outboundId, "outbound");
+
+            if(subFeatures && subFeatures.length > 0)
+              Array.prototype.push.apply(features, subFeatures);
+
+
+        });
+      }
+
+      if( showInbound && keyedData[intersectionId].inbound) {
+        keyedData[intersectionId].inbound.forEach(inboundId => {
+            var subFeatures =  this.generateReferenceGeometries(inboundId, "inbound");
+            if(subFeatures && subFeatures.length > 0)
+              Array.prototype.push.apply(features, subFeatures);
+        });
+      }
+    });
 
     var intersectionFeatureCollection = helpers.featureCollection(features);
     return intersectionFeatureCollection;
@@ -207,10 +205,14 @@ export default class Map extends React.Component {
       var bearing = reference.locationReferences[0].bearing > 180 ? reference.locationReferences[0].bearing - 360 : reference.locationReferences[0].bearing;
 
       var bearingPoint1 = destination(helpers.point(reference.locationReferences[0].point), 0.02, bearing, "kilometers");
-      var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.002, bearing + 90, "kilometers");
-      var bearingPoint3 = destination(helpers.point(reference.locationReferences[0].point), 0.002, bearing - 90, "kilometers");
 
-      var arrowCoords  = [[bearingPoint1.geometry.coordinates, bearingPoint2.geometry.coordinates, bearingPoint3.geometry.coordinates, bearingPoint1.geometry.coordinates]];
+      var bearingPointLine = helpers.lineString([reference.locationReferences[0].point, bearingPoint1.geometry.coordinates]);
+      var offsetBearingPointLine = lineOffset(bearingPointLine, 2, "meters");
+
+      var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.004, bearing + 90, "kilometers");
+
+
+      var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, reference.locationReferences[0].point, offsetBearingPointLine.geometry.coordinates[1]]];
       var bearingArrow = helpers.polygon(arrowCoords);
 
       var features = []
@@ -277,7 +279,7 @@ export default class Map extends React.Component {
 
             });
 
-            //this.showAllIntersectionDetail();
+            this.showIntersectionDetail();
         }
       });
 
