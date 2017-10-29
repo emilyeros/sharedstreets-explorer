@@ -199,19 +199,26 @@ export default class Map extends React.Component {
     });
 
     try {
+
+      // draw dashed/offset reference line
       var line = helpers.lineString(lineCoordinates);
       var offsetLine = lineOffset(line, 2, "meters");
 
+      // draw triangle showing bearing point direction
+      // calc bearing as -180 to 180 degrees
       var bearing = reference.locationReferences[0].bearing > 180 ? reference.locationReferences[0].bearing - 360 : reference.locationReferences[0].bearing;
 
+      // find bearing point (20 meters out at bearing)
       var bearingPoint1 = destination(helpers.point(reference.locationReferences[0].point), 0.02, bearing, "kilometers");
 
+      // offset bearing point line to align with dashed refernce line
       var bearingPointLine = helpers.lineString([reference.locationReferences[0].point, bearingPoint1.geometry.coordinates]);
       var offsetBearingPointLine = lineOffset(bearingPointLine, 2, "meters");
 
+      // offset far point of triangle bases
       var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.004, bearing + 90, "kilometers");
 
-
+      // build arrow from points
       var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, reference.locationReferences[0].point, offsetBearingPointLine.geometry.coordinates[1]]];
       var bearingArrow = helpers.polygon(arrowCoords);
 
