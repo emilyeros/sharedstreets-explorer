@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import './App.css';
 import {Layout, Menu, Icon, Switch, Row, Col, Badge, Slider} from 'antd';
-import MapGL from 'react-map-gl';
 import {json as requestJson} from 'd3-request';
 import Map from './Map.js';
 import { map as _map} from 'underscore';
@@ -20,8 +19,6 @@ const EVENT_COLOR = event => {
         case "PhoneUse": return [100,100,100];
     }
 };
-
-const MAPBOX_TOKEN = 'pk.eyJ1IjoidHJhbnNwb3J0cGFydG5lcnNoaXAiLCJhIjoiY2oyZ2R1aTk2MDdteDMyb2dibXpuMjdweiJ9.RtukedapVNqEAsYU-f1Vaw';
 
 class App extends Component {
 
