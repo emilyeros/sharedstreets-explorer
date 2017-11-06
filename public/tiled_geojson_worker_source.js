@@ -4,6 +4,22 @@
 // and there isn't really anything in the global space so we don't
 // have any references to dig into the internals.
 
+
+var PerfTimer = (function() {
+  if (!console.time || !console.timeEnd) {
+    return function(name) {
+      this.end = function() { };
+    };
+  }
+
+  return function(name) {
+    console.time(name);
+    this.end = function() {
+      console.timeEnd(name);
+    };
+  };
+})();
+
 // Based on projectPoint from geojson-vt
 // This returns x and y between 0 .. 1, with an upper left // corner (0, 0)
 // (north of Japan) and bottom right of (1, 1) (Antartica south of New Zealand).
@@ -180,12 +196,19 @@ function transformGeoJSONToVectorTileJSON(params, tile) {
 }
 
 TiledGeoJSONWorkerSource.customLoadVectorData = function(params, callback) {
+  var tname = params.request.url;
+  var jsont = new PerfTimer("getJSON combined json " + tname);
   getJSON(params.request, (err, res) => {
+    jsont.end();
     //if (err) return;
     if (err) return callback(err, res);
+    var t = new PerfTimer("json to vector tile json " + tname);
     var vt = transformGeoJSONToVectorTileJSON(params, res);
+    t.end();
+    t = new PerfTimer("load geo json tile " + tname);
     loadGeoJSONTile.call({
       _geoJSONIndexes: {[params.source]: {getTile: function() { return vt; }}}}, params, callback);
+    t.end();
   });
 };
 
