@@ -187,7 +187,9 @@ function transformGeoJSONToVectorTileJSON(params, tile) {
       geometry: [cs],
       type: kTypeLine,
       tags: {sid: key, type: 'reference',
+             outboundIntersectionId: locrefs[0].intersectionId,
              outboundBearing: locrefs[0].outboundBearing,
+             inboundIntersectionId:  locrefs[1].intersectionId,
              inboundBearing:  locrefs[1].inboundBearing},
     });
   }

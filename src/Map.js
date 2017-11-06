@@ -35,6 +35,11 @@ export default class Map extends React.Component {
     var map = this.map;
     window.map = map;  // For easy access from inspector, etc.
 
+    // TODO(deanm): Maybe should move to universal SSR/SSI/SSG naming.
+    const kSSRFilter = ["==", "type", "reference"];
+    const kSSIFilter = ["==", "type", "intersection"];
+    const kSSGFilter = ["==", "type", "geometry"];
+
     map.on('style.load', () => {
       this.mapLoaded = true;
 
@@ -56,7 +61,7 @@ export default class Map extends React.Component {
         'id': 'blah',
         'type': 'line',
         'source': 'streets-data',
-        "filter": ["==", "type", "geometry"],
+        "filter": kSSGFilter,
         'layout': {},
         'paint': {
           'line-color': '#f08',
@@ -69,12 +74,11 @@ export default class Map extends React.Component {
           },
       });
 
-/*
       map.addLayer({
         'id': 'blah2',
         'type': 'circle',
         'source': 'streets-data',
-        "filter": ["==", "type", "intersection"],
+        "filter": kSSIFilter,
         'layout': {},
         "paint": {
           // make circles larger as the user zooms from z12 to z22
@@ -86,14 +90,13 @@ export default class Map extends React.Component {
           'circle-opacity': 1.0
           },
       });
-*/
 
 /*
       map.addLayer({
         'id': 'blah3',
         'type': 'symbol',
         'source': 'streets-data',
-        "filter": ["==", "type", "intersection"],
+        "filter": kSSIFilter,
         'layout': {
           'icon-image': 'drinking-water-11',
         }
@@ -104,7 +107,7 @@ export default class Map extends React.Component {
         'id': 'blah3',
         'type': 'symbol',
         'source': 'streets-data',
-        "filter": ["==", "type", "reference"],
+        "filter": kSSRFilter,
         'layout': {
           'icon-image': 'triangle-11',
           'icon-allow-overlap': true,
@@ -137,6 +140,24 @@ export default class Map extends React.Component {
       });
       */
 
+    });
+
+
+    map.on('click', e => {
+      const kWH = 5;
+      var querybox = [[e.point.x - kWH, e.point.y - kWH], [e.point.x + kWH, e.point.y + kWH]];
+      var res = map.queryRenderedFeatures(querybox, {layers: ['blah2']});
+      if (!res || res.length !== 1) {
+        // Unfortunately map.getFilter() !== map.getFilter(), apparently
+        // a new array is constructed and returned for each call.
+        // NOTE(deanm): Seems it shouldn't be costly to do this even when the
+        // filter doesn't change, setFilter internally checks for that.
+        map.setFilter('blah3', kSSRFilter);  // Reset to the default filter.
+        return;
+      }
+      // Set up a filter for the selection.
+      var sid = res[0].properties.sid;
+      map.setFilter('blah3', ['all', kSSRFilter, ['any', ["==", "outboundIntersectionId", sid], ["==", "inboundIntersectionId", sid]]]);
     });
 
     map.on('load', () => {
