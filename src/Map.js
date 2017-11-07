@@ -18,8 +18,8 @@ export default class Map extends React.Component {
     super(props);
 
     this.state = {
-      lng: -74.006344,
-      lat:  40.630785,
+      lng: -122.4132,
+      lat:  37.7753,
       zoom: 14.0
     };
   }
@@ -84,7 +84,7 @@ export default class Map extends React.Component {
               'fill-opacity': 0.75,
           },
         "filter": ["==", "type", "outbound-arrow"],
-        minzoom: 12,
+        minzoom: 15,
       });
 
       this.map.addLayer({
@@ -101,7 +101,7 @@ export default class Map extends React.Component {
               // 'line-dasharray' : [1.0,0.5]
           },
         "filter": ["==", "type", "inbound-arrow"],
-        minzoom: 12,
+        minzoom: 15,
       });
 
 
@@ -133,6 +133,20 @@ export default class Map extends React.Component {
         "filter": ["==", "type", "outbound-line"],
         minzoom: 12,
       });
+
+      this.map.addLayer({
+        "id": "geometry",
+        "type": "line",
+        "source": "intersection-detail-data",
+        "paint": {
+              'line-color':"#cccccc",
+              'line-opacity': 0.75,
+              'line-width' : 4.0,
+              'line-dasharray' : [1.0,0.5]
+          },
+        "filter": ["==", "type", "geometry"],
+        minzoom: 12,
+      });
     }
 
     var intersectionDetailData = this.generateIntersectionDetail(intersectionId);
@@ -157,18 +171,20 @@ export default class Map extends React.Component {
       ids.push(id);
     }
 
-    var  features = []
+    var  features = [];
+
+    var  geometryIds = {};
 
     ids.forEach(intersectionId => {
-
-
 
       if(keyedData[intersectionId].outbound) {
         keyedData[intersectionId].outbound.forEach(outboundId => {
             var subFeatures = this.generateReferenceGeometries(outboundId, "outbound");
-
-            if(subFeatures && subFeatures.length > 0)
+            geometryIds[keyedData[outboundId].data.geometryId] = true;
+            if(subFeatures && subFeatures.length > 0) {
               Array.prototype.push.apply(features, subFeatures);
+            }
+
 
 
         });
@@ -177,9 +193,17 @@ export default class Map extends React.Component {
       if( showInbound && keyedData[intersectionId].inbound) {
         keyedData[intersectionId].inbound.forEach(inboundId => {
             var subFeatures =  this.generateReferenceGeometries(inboundId, "inbound");
+            geometryIds[keyedData[inboundId].data.geometryId] = true;
             if(subFeatures && subFeatures.length > 0)
               Array.prototype.push.apply(features, subFeatures);
         });
+      }
+    });
+
+    Object.keys(geometryIds).forEach(geometryId => {
+      if(keyedData[geometryId]) {
+        keyedData[geometryId].data.properties['type'] = "geometry"
+        features.push(keyedData[geometryId].data);
       }
     });
 
@@ -202,29 +226,55 @@ export default class Map extends React.Component {
 
       // draw dashed/offset reference line
       var line = helpers.lineString(lineCoordinates);
-      var offsetLine = lineOffset(line, 2, "meters");
-
-      // draw triangle showing bearing point direction
-      // calc bearing as -180 to 180 degrees
-      var bearing = reference.locationReferences[0].bearing > 180 ? reference.locationReferences[0].bearing - 360 : reference.locationReferences[0].bearing;
-
-      // find bearing point (20 meters out at bearing)
-      var bearingPoint1 = destination(helpers.point(reference.locationReferences[0].point), 0.02, bearing, "kilometers");
-
-      // offset bearing point line to align with dashed refernce line
-      var bearingPointLine = helpers.lineString([reference.locationReferences[0].point, bearingPoint1.geometry.coordinates]);
-      var offsetBearingPointLine = lineOffset(bearingPointLine, 2, "meters");
-
-      // offset far point of triangle bases
-      var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.004, bearing + 90, "kilometers");
-
-      // build arrow from points
-      var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, reference.locationReferences[0].point, offsetBearingPointLine.geometry.coordinates[1]]];
-      var bearingArrow = helpers.polygon(arrowCoords);
+      var offsetLine = lineOffset(line, 1, "meters");
 
       var features = []
 
-      features.push(helpers.feature(bearingArrow.geometry, {"id" : referenceId, "type": direction + "-arrow"}));
+      // only draw arrows for lines over 20m
+      if(reference.locationReferences[0].distanceToNextRef > 20) {
+        // draw triangle showing bearing point direction
+        // calc bearing as -180 to 180 degrees
+        var bearing = reference.locationReferences[0].outboundBearing > 180 ? reference.locationReferences[0].outboundBearing - 360 : reference.locationReferences[0].outboundBearing;
+
+        // find bearing point (20 meters out at bearing)
+        var bearingPoint1 = destination(helpers.point(reference.locationReferences[0].point), 0.01, bearing, "kilometers");
+
+        // offset bearing point line to align with dashed refernce line
+        var bearingPointLine = helpers.lineString([reference.locationReferences[0].point, bearingPoint1.geometry.coordinates]);
+        var offsetBearingPointLine = lineOffset(bearingPointLine, 1, "meters");
+
+        // offset far point of triangle bases
+        var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.002, bearing + 90, "kilometers");
+
+        // build arrow from points
+        var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, reference.locationReferences[0].point, offsetBearingPointLine.geometry.coordinates[1]]];
+        var inboundBearingArrow = helpers.polygon(arrowCoords);
+
+
+
+        features.push(helpers.feature(inboundBearingArrow.geometry, {"id" : referenceId, "type": "outbound-arrow"}));
+
+        // draw triangle showing bearing point direction
+        // calc bearing as -180 to 180 degrees
+        bearing = reference.locationReferences[1].inboundBearing > 0 ? reference.locationReferences[1].inboundBearing - 180 : reference.locationReferences[1].inboundBearing + 180;
+
+        // find bearing point (20 meters out at bearing)
+        bearingPoint1 = destination(helpers.point(reference.locationReferences[1].point), 0.01, bearing, "kilometers");
+
+        // offset bearing point line to align with dashed refernce line
+        bearingPointLine = helpers.lineString([bearingPoint1.geometry.coordinates, reference.locationReferences[1].point]);
+        offsetBearingPointLine = lineOffset(bearingPointLine, 1, "meters");
+
+        // offset far point of triangle bases
+        bearingPoint2 = destination(helpers.point(bearingPoint1.geometry.coordinates), 0.002, bearing - 90, "kilometers");
+
+        // build arrow from points
+        arrowCoords  = [[bearingPoint1.geometry.coordinates, offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, bearingPoint1.geometry.coordinates]];
+        var outboundBearingArrow = helpers.polygon(arrowCoords);
+
+        features.push(helpers.feature(outboundBearingArrow.geometry, {"id" : referenceId, "type": "inbound-arrow"}));
+      }
+
       features.push(helpers.feature(offsetLine.geometry, {"id" : referenceId, "type": direction + "-line"}));
 
       return features;
@@ -234,7 +284,7 @@ export default class Map extends React.Component {
     }
   }
 
-  addTile(tileId) {
+  addTile(tileSource, tileId) {
 
     if(this.keyedData == undefined)
       this.keyedData = [];
@@ -248,7 +298,7 @@ export default class Map extends React.Component {
 
       this.tilesLoaded[tileId] = true;
 
-      requestJson('./data/nyc_core/reference/' + tileId + '.reference.json', (error, response) => {
+      requestJson('./data/' + tileSource + '/reference/' + tileId + '.reference.json', (error, response) => {
         if (!error) {
             response.forEach((item) => {
 
@@ -259,14 +309,6 @@ export default class Map extends React.Component {
 
               var outboundIntersecionId = item.locationReferences[0].intersectionId;
               var inboundIntersecionId = item.locationReferences[item.locationReferences.length - 1].intersectionId;
-
-              if(outboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
-                console.log('9dVpcxMxmtoBXBgHmLDTXj');
-              }
-
-              if(inboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
-                console.log('9dVpcxMxmtoBXBgHmLDTXj');
-              }
 
               if(keyedData[outboundIntersecionId] == undefined)
                 keyedData[outboundIntersecionId] = {};
@@ -290,22 +332,34 @@ export default class Map extends React.Component {
         }
       });
 
-      requestJson('./data/nyc_core/intersection/' + tileId + '.intersection.json', (error, response) => {
+      requestJson('./data/' + tileSource + '/intersection/' + tileId + '.intersection.json', (error, response) => {
         if (!error) {
 
             this.mapIntersectionData = response;
 
             response.features.forEach((item) => {
 
-              if(item.properties.id == '9dVpcxMxmtoBXBgHmLDTXj') {
-                console.log('9dVpcxMxmtoBXBgHmLDTXj');
-              }
-
 
               if(keyedData[item.properties.id] == undefined)
                 keyedData[item.properties.id] = {};
 
               keyedData[item.properties.id].intersection = item;
+
+            });
+
+            this.showIntersectionLayer();
+        }
+      });
+
+      requestJson('./data/' + tileSource + '/geometry/' + tileId + '.geometry.json', (error, response) => {
+        if (!error) {
+
+            response.features.forEach((item) => {
+
+              keyedData[item.properties.id] = {};
+
+              keyedData[item.properties.id].type = "geometry"
+              keyedData[item.properties.id].data = item;
 
             });
 
@@ -331,9 +385,10 @@ export default class Map extends React.Component {
     map.on('style.load', () => {
       this.mapLoaded = true;
 
-      var tileId = '10-301-385';
+      var tileId = '10-163-395';
+      var tileSource = 'sf_extract'
 
-      this.addTile(tileId);
+      this.addTile(tileSource, tileId);
 
     });
 
