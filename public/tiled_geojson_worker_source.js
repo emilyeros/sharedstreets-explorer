@@ -6,10 +6,11 @@
 
 importScripts(origin + "/geojson-vt.js");
 
-var GeoJSONWorkerSource = mapboxDereq("./geojson_worker_source");
-var loadGeoJSONTile = new GeoJSONWorkerSource(null, null).loadVectorData;
-var Point = mapboxDereq("@mapbox/point-geometry");
-var VectorTileWorkerSource = mapboxDereq("./vector_tile_worker_source");
+const GeoJSONWorkerSource = mapboxDereq("./geojson_worker_source");
+const Point = mapboxDereq("@mapbox/point-geometry");
+const VectorTileWorkerSource = mapboxDereq("./vector_tile_worker_source");
+const EXTENT = mapboxDereq('../data/extent');
+const vtpbf = mapboxDereq('vt-pbf');
 
 var PerfTimer = (function() {
   if (!console.time || !console.timeEnd) {
@@ -97,7 +98,7 @@ Object.setPrototypeOf(TiledGeoJSONWorkerSource.prototype, VectorTileWorkerSource
 // o  As another shorthand notation, the term "GeoJSON types" refers to
 //    nine case-sensitive strings: "Feature", "FeatureCollection", and
 //    the geometry types listed above.
-function transformGeoJSONToVectorTileJSON(params, tile) {
+TiledGeoJSONWorkerSource.transformGeoJSONToVectorTileJSON = function(params, tile) {
   //debugger;
 
   const kExtent = 8192;  // 2^13, mapbox internal integer coordinates
@@ -113,19 +114,18 @@ function transformGeoJSONToVectorTileJSON(params, tile) {
 
   let features = [ ];
 
+  var tmpc = [0, 0];
+
   let geom = tile.geometries;
   for (let key in geom) {
     var g = geom[key];
     let c = g.coordinates;
     let cs = [ ];
     for (let j = 0, jl = c.length; j < jl; ++j) {
-      var out = [0, 0];
       let xy = c[j];
-      webMercator$(xy[0], xy[1], out);
+      webMercator$(xy[0], xy[1], tmpc);
       // Convert to (integer) tile coordinates
-      out[0] = Math.round((out[0] - tx) * s);
-      out[1] = Math.round((out[1] - ty) * s);
-      cs.push(out);
+      cs.push(new Point(Math.round((tmpc[0] - tx) * s), Math.round((tmpc[1] - ty) * s)));
     }
     // Adapt into the expected vector tile JSON format.
     // NOTE(deanm): We call our id `sid` because `id` is internally
@@ -140,15 +140,14 @@ function transformGeoJSONToVectorTileJSON(params, tile) {
   let inter = tile.intersections;
   for (let key in inter) {
     var g = inter[key];
-    var out = [0, 0];
+    var cs = [ ];
     let xy = g.point;
-    webMercator$(xy[0], xy[1], out);
+    webMercator$(xy[0], xy[1], tmpc);
     // Convert to (integer) tile coordinates
-    out[0] = Math.round((out[0] - tx) * s);
-    out[1] = Math.round((out[1] - ty) * s);
+    cs.push(new Point(Math.round((tmpc[0] - tx) * s), Math.round((tmpc[1] - ty) * s)));
     // Adapt into the expected vector tile JSON format.
     features.push({
-      geometry: [out],
+      geometry: [cs],
       type: kTypePoint,
       tags: {sid: key, type: 'intersection'},
     });
@@ -161,14 +160,11 @@ function transformGeoJSONToVectorTileJSON(params, tile) {
     if (locrefs.length !== 2) { debugger; }
     let cs = [ ];
     for (let i = 0; i < 2; ++i) {
-      var out = [0, 0];
       let xy = locrefs[i].point;
-      webMercator$(xy[0], xy[1], out);
+      webMercator$(xy[0], xy[1], tmpc);
       // Convert to (integer) tile coordinates
-      out[0] = Math.round((out[0] - tx) * s);
-      out[1] = Math.round((out[1] - ty) * s);
       // Adapt into the expected vector tile JSON format.
-      cs.push(out);
+      cs.push(new Point(Math.round((tmpc[0] - tx) * s), Math.round((tmpc[1] - ty) * s)));
     }
     features.push({
       geometry: [cs],
@@ -184,6 +180,58 @@ function transformGeoJSONToVectorTileJSON(params, tile) {
   return {features: features};
 }
 
+function SSFeatureWrapper(feature) {
+  this._feature = feature;
+  this.extent = EXTENT;
+  this.type = feature.type;
+  this.properties = feature.tags;
+/*
+    if ('id' in feature && !isNaN(feature.id)) {
+        this.id = parseInt(feature.id, 10);
+    }
+*/
+}
+
+SSFeatureWrapper.prototype.loadGeometry = function() {
+	return this._feature.geometry;
+};
+
+SSFeatureWrapper.prototype.toGeoJSON = function() {
+  debugger;
+//FeatureWrapper.prototype.toGeoJSON = VectorTileFeature.prototype.toGeoJSON
+};
+
+// conform to vectortile api
+function SSWrapper(features) {
+	this.layers = { '_geojsonTileLayer': this };
+	this.name = '_geojsonTileLayer';
+	this.extent = EXTENT;
+	this.length = features.length;
+	this._features = features;
+}
+
+SSWrapper.prototype.feature = function(i) {
+  return new SSFeatureWrapper(this._features[i])
+};
+
+TiledGeoJSONWorkerSource.customLoadTile = function(tile, callback) {
+  const wrapped = new SSWrapper(tile.features);
+
+  // Encode the geojson-vt tile into binary vector tile form form.  This
+  // is a convenience that allows `FeatureIndex` to operate the same way
+  // across `VectorTileSource` and `GeoJSONSource` data.
+  let pbf = vtpbf(wrapped);
+  if (pbf.byteOffset !== 0 || pbf.byteLength !== pbf.buffer.byteLength) {
+    // Compatibility with node Buffer (https://github.com/mapbox/pbf/issues/35)
+    pbf = new Uint8Array(pbf);
+  }
+
+  callback(null, {
+    vectorTile: wrapped,
+    rawData: pbf.buffer
+  });
+};
+
 TiledGeoJSONWorkerSource.customLoadVectorData = function(params, callback) {
   var tname = params.request.url;
   var jsont = new PerfTimer("getJSON combined json " + tname);
@@ -192,11 +240,10 @@ TiledGeoJSONWorkerSource.customLoadVectorData = function(params, callback) {
     //if (err) return;
     if (err) return callback(err, res);
     var t = new PerfTimer("json to vector tile json " + tname);
-    var vt = transformGeoJSONToVectorTileJSON(params, res);
+    var vt = TiledGeoJSONWorkerSource.transformGeoJSONToVectorTileJSON(params, res);
     t.end();
     t = new PerfTimer("load geo json tile " + tname);
-    loadGeoJSONTile.call({
-      _geoJSONIndexes: {[params.source]: {getTile: function() { return vt; }}}}, params, callback);
+    TiledGeoJSONWorkerSource.customLoadTile(vt, callback);
     t.end();
   });
 };
