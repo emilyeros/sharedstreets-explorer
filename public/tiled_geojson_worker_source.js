@@ -4,6 +4,12 @@
 // and there isn't really anything in the global space so we don't
 // have any references to dig into the internals.
 
+importScripts(origin + "/geojson-vt.js");
+
+var GeoJSONWorkerSource = mapboxDereq("./geojson_worker_source");
+var loadGeoJSONTile = new GeoJSONWorkerSource(null, null).loadVectorData;
+var Point = mapboxDereq("@mapbox/point-geometry");
+var VectorTileWorkerSource = mapboxDereq("./vector_tile_worker_source");
 
 var PerfTimer = (function() {
   if (!console.time || !console.timeEnd) {
@@ -77,29 +83,10 @@ function getJSON(requestParameters, callback) {
     return xhr;
 };
 
-var loadGeoJSONTile = null;
-function fish_loadGeoJSONTile(actor) {
-  if (loadGeoJSONTile !== null) return false;
-  var gjw = new actor.parent.workerSourceTypes.geojson(null, null);
-  loadGeoJSONTile = gjw.loadVectorData;
-  return true;
-}
-
-var VectorTileWorkerSource = null;
-function fish_VectorTileWorkerSource(actor) {
-  if (VectorTileWorkerSource !== null) return false;
-  VectorTileWorkerSource = actor.parent.workerSourceTypes.vector;
-  return true;
-}
-
 function TiledGeoJSONWorkerSource(actor, layerIndex) {
-  fish_loadGeoJSONTile(actor);
-
-  if (fish_VectorTileWorkerSource(actor))
-    Object.setPrototypeOf(TiledGeoJSONWorkerSource.prototype, VectorTileWorkerSource.prototype);
-
   VectorTileWorkerSource.call(this, actor, layerIndex, TiledGeoJSONWorkerSource.customLoadVectorData);
 }
+Object.setPrototypeOf(TiledGeoJSONWorkerSource.prototype, VectorTileWorkerSource.prototype);
 
 // https://tools.ietf.org/html/rfc7946#section-1.4
 // o  Inside this document, the term "geometry type" refers to seven
