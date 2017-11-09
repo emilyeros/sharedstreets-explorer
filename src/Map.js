@@ -109,6 +109,7 @@ export default class Map extends React.Component {
         'source': 'streets-data',
         "filter": kSSRFilter,
         'layout': {
+          'visibility': 'none',
           'icon-image': 'triangle-11',
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
@@ -152,12 +153,14 @@ export default class Map extends React.Component {
         // a new array is constructed and returned for each call.
         // NOTE(deanm): Seems it shouldn't be costly to do this even when the
         // filter doesn't change, setFilter internally checks for that.
-        map.setFilter('blah3', kSSRFilter);  // Reset to the default filter.
+        //map.setFilter('blah3', kSSRFilter);  // Reset to the default filter.
+        map.setLayoutProperty('blah3', 'visibility', 'none');
         return;
       }
       // Set up a filter for the selection.
       var sid = res[0].properties.sid;
       map.setFilter('blah3', ['all', kSSRFilter, ['any', ["==", "outboundIntersectionId", sid], ["==", "inboundIntersectionId", sid]]]);
+        map.setLayoutProperty('blah3', 'visibility', 'visible');
     });
 
     map.on('load', () => {
