@@ -34,6 +34,19 @@ function TiledGeoJSONSource(id, specification, dispatcher, eventedParent) {
   var VectorTileSource = map.style.sourceCaches.composite._source.constructor;
   // Should be the same as `this.__proto__.__proto__ = VectorTileSource.prototype`.
   Object.setPrototypeOf(TiledGeoJSONSource.prototype, VectorTileSource.prototype);
+
+  // We need to make sure that all requests go to the same worker, whereas a
+  // normal vector tile source could dispatch to a pool a workers.  This is
+  // because we don't want to reload parent tiles and a tile could be
+  // dispatched to a worker that doesn't have the parent tile when another
+  // worker does.
+  this.workerID = undefined;
+  var shimpatcher = {
+    send: (type, data, callback, targetID, buffers) => {
+      if (targetID !== undefined && targetID != this.workerID) throw "xxx";
+      return this.workerID = dispatcher.send(type, data, callback, this.workerID, buffers);
+    }
+  };
   VectorTileSource.call(this, id, specification, dispatcher, eventedParent);
 
   // Overrides type = 'vector' set by VectorTileSource, this is important because
