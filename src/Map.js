@@ -84,7 +84,7 @@ export default class Map extends React.Component {
           // make circles larger as the user zooms from z12 to z22
           'circle-radius': {
             'base': 1.0,
-            'stops': [[12, 1], [22, 15]]
+            'stops': [[12, 1], [14, 4]]
           },
           'circle-color':"#9999cc",
           'circle-opacity': 1.0
