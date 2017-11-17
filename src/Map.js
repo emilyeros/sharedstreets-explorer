@@ -6,6 +6,7 @@ import { map as _map} from 'underscore';
 import { filter as _filter} from 'underscore';
 import { first as _first} from 'underscore';
 import { last as _last} from 'underscore';
+import { Reader, load as protoLoad }  from "protobufjs";
 import helpers from "@turf/helpers";
 import lineOffset from "@turf/line-offset";
 import destination from "@turf/destination"
@@ -298,74 +299,7 @@ export default class Map extends React.Component {
 
       this.tilesLoaded[tileId] = true;
 
-      requestJson('./data/' + tileSource + '/reference/' + tileId + '.reference.json', (error, response) => {
-        if (!error) {
-            response.forEach((item) => {
 
-              keyedData[item.id] = {};
-
-              keyedData[item.id].type = "reference"
-              keyedData[item.id].data = item;
-
-              var outboundIntersecionId = item.locationReferences[0].intersectionId;
-              var inboundIntersecionId = item.locationReferences[item.locationReferences.length - 1].intersectionId;
-
-              if(keyedData[outboundIntersecionId] == undefined)
-                keyedData[outboundIntersecionId] = {};
-
-              if(keyedData[outboundIntersecionId].outbound == undefined)
-                keyedData[outboundIntersecionId].outbound = [];
-
-              keyedData[outboundIntersecionId].outbound.push(item.id);
-
-              if(keyedData[inboundIntersecionId] == undefined)
-                keyedData[inboundIntersecionId] = {};
-
-              if(keyedData[inboundIntersecionId].inbound == undefined)
-                keyedData[inboundIntersecionId].inbound = [];
-
-              keyedData[inboundIntersecionId].inbound.push(item.id);
-
-            });
-
-            this.showIntersectionDetail();
-        }
-      });
-
-      requestJson('./data/' + tileSource + '/intersection/' + tileId + '.intersection.json', (error, response) => {
-        if (!error) {
-
-            this.mapIntersectionData = response;
-
-            response.features.forEach((item) => {
-
-
-              if(keyedData[item.properties.id] == undefined)
-                keyedData[item.properties.id] = {};
-
-              keyedData[item.properties.id].intersection = item;
-
-            });
-
-            this.showIntersectionLayer();
-        }
-      });
-
-      requestJson('./data/' + tileSource + '/geometry/' + tileId + '.geometry.json', (error, response) => {
-        if (!error) {
-
-            response.features.forEach((item) => {
-
-              keyedData[item.properties.id] = {};
-
-              keyedData[item.properties.id].type = "geometry"
-              keyedData[item.properties.id].data = item;
-
-            });
-
-            this.showIntersectionLayer();
-        }
-      });
     }
   }
 
@@ -373,24 +307,44 @@ export default class Map extends React.Component {
   componentDidMount() {
     const { lng, lat, zoom, data, mapType } = this.state;
 
+    this.protos = {};
+    var protos = this.protos;
+
+    protoLoad('sharedstreets.proto', (err, root) => {
+      protos.SharedStreetsReference = root.lookupType("SharedStreetsReference");
+      protos.SharedStreetsGeometry = root.lookupType("SharedStreetsGeometry");
+
+
+      var oReq = new XMLHttpRequest();
+      oReq.open("GET", "data/test3/11-602-770.reference.pbf", true);
+      oReq.responseType = "arraybuffer";
+
+      oReq.onload = (oEvent) =>  {
+        var msg = protos.SharedStreetsReference.decodeDelimited(new Uint8Array(oReq.response));
+        console.log(msg);
+      };
+
+      oReq.send();
+    });
+
     this.map = new mapboxgl.Map({
       container: this.mapContainer,
       style: 'mapbox://styles/transportpartnership/cj8wntx6cgad82rugw1b1xz0d',
       center: [lng, lat],
       zoom
     });
+
+
     var map = this.map;
 
 
     map.on('style.load', () => {
       this.mapLoaded = true;
 
-      var tileId = '10-163-395';
-      var tileSource = 'sf_extract'
-
-      this.addTile(tileSource, tileId);
-
     });
+
+
+
 
     map.on('load', () => {
         this.mapLoaded = true;

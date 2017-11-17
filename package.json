@@ -11,6 +11,7 @@
     "jsts": "./jsts-1.1.2.tgz",
     "luma.gl": "^4.0.1",
     "mapbox-gl": "^0.41.0",
+    "protobufjs": "^6.8.0",
     "react": "^15.6.1",
     "react-dom": "^15.6.1",
     "react-map-gl": "^3.0.0",
