@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@mapbox/sphericalmercator": "^1.0.5",
     "@turf/turf": "^4.7.3",
     "antd": "^2.12.6",
     "d3-request": "^1.0.5",
@@ -11,7 +12,11 @@
     "jsts": "./jsts-1.1.2.tgz",
     "luma.gl": "^4.0.1",
     "mapbox-gl": "^0.41.0",
+<<<<<<< HEAD
     "protobufjs": "^6.8.0",
+=======
+    "protobufjs": "^6.8.3",
+>>>>>>> ccdfbca... protobuf
     "react": "^15.6.1",
     "react-dom": "^15.6.1",
     "react-map-gl": "^3.0.0",

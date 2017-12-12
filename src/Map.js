@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import mapboxgl from 'mapbox-gl'
-import {json as requestJson} from 'd3-request';
+import {request as request} from 'd3-request';
 import { map as _map} from 'underscore';
 import { filter as _filter} from 'underscore';
 import { first as _first} from 'underscore';
@@ -9,9 +9,15 @@ import { last as _last} from 'underscore';
 import { Reader, load as protoLoad }  from "protobufjs";
 import helpers from "@turf/helpers";
 import lineOffset from "@turf/line-offset";
-import destination from "@turf/destination"
+import destination from "@turf/destination";
+import SphericalMercator from "@mapbox/sphericalmercator";
+import protobuf from "protobufjs"
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHJhbnNwb3J0cGFydG5lcnNoaXAiLCJhIjoiY2oyZ2R1aTk2MDdteDMyb2dibXpuMjdweiJ9.RtukedapVNqEAsYU-f1Vaw';
+
+const sphericalMercator = new SphericalMercator({
+    size: 256
+});
 
 export default class Map extends React.Component {
 
@@ -287,6 +293,15 @@ export default class Map extends React.Component {
 
   addTile(tileSource, tileId) {
 
+    if(this.loadedTiles == undefined)
+      this.loadedTiles = []
+
+    // bail if tile already loaded
+    if(this.loadedTiles[tileId])
+      return;
+
+    this.loadedTiles[tileId] = true;
+
     if(this.keyedData == undefined)
       this.keyedData = [];
 
@@ -299,6 +314,7 @@ export default class Map extends React.Component {
 
       this.tilesLoaded[tileId] = true;
 
+<<<<<<< HEAD
 
     }
   }
@@ -314,6 +330,71 @@ export default class Map extends React.Component {
       protos.SharedStreetsReference = root.lookupType("SharedStreetsReference");
       protos.SharedStreetsGeometry = root.lookupType("SharedStreetsGeometry");
 
+=======
+      request('./data/tiles/' + tileId + '.reference.pbf').responseType('blob').get( (error, response) => {
+        if (!error) {
+
+          var arrayBuffer = response.response;
+          var data = new Uint8Array(arrayBuffer);
+          var reader = protobuf.Reader.create(data);
+          while (reader.pos < reader.len) {
+
+              var item = this.SharedStreetsReference.decodeDelimited(reader);
+
+              keyedData[item.id] = {};
+
+              keyedData[item.id].type = "reference"
+              keyedData[item.id].data = item;
+
+              var outboundIntersecionId = item.locationReferences[0].intersectionId;
+              var inboundIntersecionId = item.locationReferences[item.locationReferences.length - 1].intersectionId;
+
+              if(outboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
+                console.log('9dVpcxMxmtoBXBgHmLDTXj');
+              }
+
+              if(inboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
+                console.log('9dVpcxMxmtoBXBgHmLDTXj');
+              }
+
+              if(keyedData[outboundIntersecionId] == undefined)
+                keyedData[outboundIntersecionId] = {};
+
+              if(keyedData[outboundIntersecionId].outbound == undefined)
+                keyedData[outboundIntersecionId].outbound = [];
+
+              keyedData[outboundIntersecionId].outbound.push(item.id);
+
+              if(keyedData[inboundIntersecionId] == undefined)
+                keyedData[inboundIntersecionId] = {};
+
+              if(keyedData[inboundIntersecionId].inbound == undefined)
+                keyedData[inboundIntersecionId].inbound = [];
+
+              keyedData[inboundIntersecionId].inbound.push(item.id);
+
+          }
+
+          this.showIntersectionDetail();
+        }
+      });
+
+      request('./data/tiles/' + tileId + '.intersection.pbf').responseType('blob').get(  (error, response) => {
+        if (!error) {
+
+          var data = new Uint8Array(response);
+
+            // this.mapIntersectionData = response;
+            //
+            // response.features.forEach((item) => {
+            //
+            //   if(keyedData[item.properties.id] == undefined)
+            //     keyedData[item.properties.id] = {};
+            //
+            //   keyedData[item.properties.id].intersection = item;
+            //
+            // });
+>>>>>>> ccdfbca... protobuf
 
       var oReq = new XMLHttpRequest();
       oReq.open("GET", "data/test3/11-602-770.reference.pbf", true);
@@ -324,8 +405,14 @@ export default class Map extends React.Component {
         console.log(msg);
       };
 
+<<<<<<< HEAD
       oReq.send();
     });
+=======
+  componentDidMount() {
+    const { lng, lat, zoom, data, mapType } = this.state;
+    var z = 11;
+>>>>>>> ccdfbca... protobuf
 
     this.map = new mapboxgl.Map({
       container: this.mapContainer,
@@ -337,13 +424,47 @@ export default class Map extends React.Component {
 
     var map = this.map;
 
+    protobuf.load("sharedstreets.proto", (err, root) => {
+        if (err)
+            throw err;
+
+        // Obtain a message type
+        this.SharedStreetsReference = root.lookupType("io.sharedstreets.SharedStreetsReference");
+        this.SharedStreetsIntersection = root.lookupType("io.sharedstreets.SharedStreetsIntersection");
+        this.SharedStreetsGeometry = root.lookupType("io.sharedstreets.SharedStreetsGeometry");
+    });
+
+    map.on('moveend', () => {
+      var mapboxBounds = map.getBounds();
+      var bounds = [mapboxBounds.getWest(), mapboxBounds.getSouth(), mapboxBounds.getEast(), mapboxBounds.getNorth()]
+      var tiles = sphericalMercator.xyz(bounds, z);
+      for(var x = tiles.minX; x <= tiles.maxX; x++){
+        for(var y = tiles.minY; y <= tiles.maxY; y++){
+            var tileId = z + '-' + x + '-' + y;
+            this.addTile(tileId);
+        }
+      }
+
+    });
 
     map.on('style.load', () => {
       this.mapLoaded = true;
 
+<<<<<<< HEAD
     });
 
 
+=======
+      var mapboxBounds = map.getBounds();
+      var bounds = [mapboxBounds.getWest(), mapboxBounds.getSouth(), mapboxBounds.getEast(), mapboxBounds.getNorth()]
+      var tiles = sphericalMercator.xyz(bounds, z);
+      for(var x = tiles.minX; x <= tiles.maxX; x++){
+        for(var y = tiles.minY; y <= tiles.maxY; y++){
+            var tileId = z + '-' + x + '-' + y;
+            this.addTile(tileId);
+        }
+      }
+>>>>>>> ccdfbca... protobuf
 
 
     map.on('load', () => {
