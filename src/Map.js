@@ -25,26 +25,27 @@ export default class Map extends React.Component {
     super(props);
 
     this.state = {
-      lng: -122.4132,
-      lat:  37.7753,
+      lng: -74.00390625,
+      lat:  40.58058466,
       zoom: 14.0
     };
   }
 
   showIntersectionLayer() {
-    var map = this.map;
+
+    var intersectionFeatures = this.generateIntersectionFeatures();
 
     if(!this.map.getLayer("intersections") && this.mapLoaded ) {
 
-      var intersectionFeatures = [];
+      this.map.addSource("intersection-data", {
+         "type": "geojson",
+         "data": intersectionFeatures
+      });
 
       this.map.addLayer({
         "id": "intersections",
         "type": "circle",
-        "source": {
-            "type": "geojson",
-            "data": this.mapIntersectionData
-        },
+        "source": "intersection-data",
         "paint": {
               // make circles larger as the user zooms from z12 to z22
               'circle-radius': {
@@ -52,13 +53,11 @@ export default class Map extends React.Component {
                   'stops': [[12, 1], [22, 15]]
               },
               // color circles by ethnicity, using data-driven styles
-              'circle-color':"#9999cc",
+              'circle-color':"#cccccc",
               'circle-opacity': 1.0
           },
-        minzoom: 12,
+        minzoom: 10,
       });
-
-      var keyedData = this.keyedData;
 
       this.map.on('click', 'intersections', (e) => {
         this.showIntersectionDetail(e.features[0].properties.id)
@@ -66,8 +65,23 @@ export default class Map extends React.Component {
 
 
     } else if(this.map.getLayer("intersections")) {
-
+      this.map.getSource("intersection-data").setData(intersectionFeatures);
     }
+
+  }
+
+  generateIntersectionFeatures() {
+    var keyedData = this.keyedData;
+    var intersections = {"type" : "FeatureCollection", "features": []};
+
+    for(var itemId in keyedData) {
+      if(keyedData[itemId].type == "intersection") {
+          var feature = {"type": "Feature","properties": {"id": itemId},"geometry": {"type": "Point","coordinates": [keyedData[itemId].data.lon,keyedData[itemId].data.lat]}};
+          intersections.features.push(feature);
+      }
+    }
+
+    return intersections;
 
   }
 
@@ -126,7 +140,6 @@ export default class Map extends React.Component {
         minzoom: 12,
       });
 
-
       this.map.addLayer({
         "id": "intersection-detail-outbound-line",
         "type": "line",
@@ -161,21 +174,21 @@ export default class Map extends React.Component {
 
   }
 
-
-  generateIntersectionDetail(id) {
+  generateIntersectionDetail(intersectionId) {
 
     var keyedData = this.keyedData;
     var showInbound = true;
     var ids = []
-    if(!id) {
-      for(var intersectionId in keyedData) {
-        ids.push(intersectionId);
-        // only show outbound for complete map
-        showInbound = false;
+    if(!intersectionId) {
+      // only show outbound for complete map
+      showInbound = false;
+      for(var id in keyedData) {
+        if(keyedData[id].type == "intersection")
+          ids.push(intersectionId);
       }
     }
     else {
-      ids.push(id);
+      ids.push(intersectionId);
     }
 
     var  features = [];
@@ -183,7 +196,6 @@ export default class Map extends React.Component {
     var  geometryIds = {};
 
     ids.forEach(intersectionId => {
-
       if(keyedData[intersectionId].outbound) {
         keyedData[intersectionId].outbound.forEach(outboundId => {
             var subFeatures = this.generateReferenceGeometries(outboundId, "outbound");
@@ -226,7 +238,7 @@ export default class Map extends React.Component {
 
     var lineCoordinates = [];
     reference.locationReferences.forEach(locationReference => {
-      lineCoordinates.push(locationReference.point);
+      lineCoordinates.push([locationReference.lon, locationReference.lat]);
     });
 
     try {
@@ -244,17 +256,17 @@ export default class Map extends React.Component {
         var bearing = reference.locationReferences[0].outboundBearing > 180 ? reference.locationReferences[0].outboundBearing - 360 : reference.locationReferences[0].outboundBearing;
 
         // find bearing point (20 meters out at bearing)
-        var bearingPoint1 = destination(helpers.point(reference.locationReferences[0].point), 0.01, bearing, "kilometers");
+        var bearingPoint1 = destination(helpers.point([reference.locationReferences[0].lon, reference.locationReferences[0].lat]), 0.01, bearing, "kilometers");
 
         // offset bearing point line to align with dashed refernce line
-        var bearingPointLine = helpers.lineString([reference.locationReferences[0].point, bearingPoint1.geometry.coordinates]);
+        var bearingPointLine = helpers.lineString([[reference.locationReferences[0].lon, reference.locationReferences[0].lat], bearingPoint1.geometry.coordinates]);
         var offsetBearingPointLine = lineOffset(bearingPointLine, 1, "meters");
 
         // offset far point of triangle bases
-        var bearingPoint2 = destination(helpers.point(reference.locationReferences[0].point), 0.002, bearing + 90, "kilometers");
+        var bearingPoint2 = destination(helpers.point([reference.locationReferences[0].lon, reference.locationReferences[0].lat]), 0.002, bearing + 90, "kilometers");
 
         // build arrow from points
-        var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, reference.locationReferences[0].point, offsetBearingPointLine.geometry.coordinates[1]]];
+        var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, [reference.locationReferences[0].lon, reference.locationReferences[0].lat], offsetBearingPointLine.geometry.coordinates[1]]];
         var inboundBearingArrow = helpers.polygon(arrowCoords);
 
 
@@ -266,10 +278,10 @@ export default class Map extends React.Component {
         bearing = reference.locationReferences[1].inboundBearing > 0 ? reference.locationReferences[1].inboundBearing - 180 : reference.locationReferences[1].inboundBearing + 180;
 
         // find bearing point (20 meters out at bearing)
-        bearingPoint1 = destination(helpers.point(reference.locationReferences[1].point), 0.01, bearing, "kilometers");
+        bearingPoint1 = destination(helpers.point([reference.locationReferences[1].lon, reference.locationReferences[1].lat]), 0.01, bearing, "kilometers");
 
         // offset bearing point line to align with dashed refernce line
-        bearingPointLine = helpers.lineString([bearingPoint1.geometry.coordinates, reference.locationReferences[1].point]);
+        bearingPointLine = helpers.lineString([bearingPoint1.geometry.coordinates, [reference.locationReferences[1].lon, reference.locationReferences[1].lat]]);
         offsetBearingPointLine = lineOffset(bearingPointLine, 1, "meters");
 
         // offset far point of triangle bases
@@ -291,128 +303,115 @@ export default class Map extends React.Component {
     }
   }
 
-  addTile(tileSource, tileId) {
-
-    if(this.loadedTiles == undefined)
-      this.loadedTiles = []
-
-    // bail if tile already loaded
-    if(this.loadedTiles[tileId])
-      return;
-
-    this.loadedTiles[tileId] = true;
-
-    if(this.keyedData == undefined)
-      this.keyedData = [];
+  addReference(reference) {
 
     var keyedData = this.keyedData;
 
-    if(this.tilesLoaded == undefined)
-      this.tilesLoaded = {};
+    keyedData[reference.id] = {};
 
-    if(!this.tilesLoaded[tileId]) {
+    keyedData[reference.id].type = "reference";
+    keyedData[reference.id].data = reference;
 
-      this.tilesLoaded[tileId] = true;
+    var outboundIntersecionId = reference.locationReferences[0].intersectionId;
+    var inboundIntersecionId = reference.locationReferences[reference.locationReferences.length - 1].intersectionId;
 
-<<<<<<< HEAD
-
+    if(keyedData[outboundIntersecionId] == undefined) {
+      keyedData[outboundIntersecionId] = {};
+      keyedData[outboundIntersecionId].type = "intersection";
+      keyedData[outboundIntersecionId].data = {};
+      keyedData[outboundIntersecionId].data.lat = reference.locationReferences[0].lat;
+      keyedData[outboundIntersecionId].data.lon = reference.locationReferences[0].lon;
     }
+
+
+    if(keyedData[outboundIntersecionId].outbound == undefined)
+      keyedData[outboundIntersecionId].outbound = [];
+
+    keyedData[outboundIntersecionId].outbound.push(reference.id);
+
+    if(keyedData[inboundIntersecionId] == undefined) {
+      keyedData[inboundIntersecionId] = {};
+      keyedData[inboundIntersecionId].type = "intersection";
+      keyedData[inboundIntersecionId].data = {};
+      keyedData[inboundIntersecionId].data.lat = reference.locationReferences[reference.locationReferences.length - 1].lat;
+      keyedData[inboundIntersecionId].data.lon = reference.locationReferences[reference.locationReferences.length - 1].lon;
+    }
+
+
+    if(keyedData[inboundIntersecionId].inbound == undefined)
+      keyedData[inboundIntersecionId].inbound = [];
+
+    keyedData[inboundIntersecionId].inbound.push(reference.id);
   }
 
+  addTile(tileId) {
 
-  componentDidMount() {
-    const { lng, lat, zoom, data, mapType } = this.state;
+      if(this.loadedTiles == undefined)
+        this.loadedTiles = []
 
-    this.protos = {};
-    var protos = this.protos;
+      // bail if tile already loaded
+      if(this.loadedTiles[tileId])
+        return;
 
-    protoLoad('sharedstreets.proto', (err, root) => {
-      protos.SharedStreetsReference = root.lookupType("SharedStreetsReference");
-      protos.SharedStreetsGeometry = root.lookupType("SharedStreetsGeometry");
+      this.loadedTiles[tileId] = true;
 
-=======
-      request('./data/tiles/' + tileId + '.reference.pbf').responseType('blob').get( (error, response) => {
-        if (!error) {
+      if(this.keyedData == undefined)
+        this.keyedData = [];
 
-          var arrayBuffer = response.response;
-          var data = new Uint8Array(arrayBuffer);
-          var reader = protobuf.Reader.create(data);
+
+      var referenceRequest = new XMLHttpRequest();
+      referenceRequest.open("GET", './data/tiles/' + tileId + '.reference.pbf', true);
+      referenceRequest.responseType = "arraybuffer";
+
+      referenceRequest.onload = (oEvent) =>  {
+        if(referenceRequest.response.byteLength > 2000) { // hack for development env because react bootstrap code doesn't return 404s
+          var reader = protobuf.Reader.create(new Uint8Array(referenceRequest.response));
           while (reader.pos < reader.len) {
-
-              var item = this.SharedStreetsReference.decodeDelimited(reader);
-
-              keyedData[item.id] = {};
-
-              keyedData[item.id].type = "reference"
-              keyedData[item.id].data = item;
-
-              var outboundIntersecionId = item.locationReferences[0].intersectionId;
-              var inboundIntersecionId = item.locationReferences[item.locationReferences.length - 1].intersectionId;
-
-              if(outboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
-                console.log('9dVpcxMxmtoBXBgHmLDTXj');
-              }
-
-              if(inboundIntersecionId == '9dVpcxMxmtoBXBgHmLDTXj') {
-                console.log('9dVpcxMxmtoBXBgHmLDTXj');
-              }
-
-              if(keyedData[outboundIntersecionId] == undefined)
-                keyedData[outboundIntersecionId] = {};
-
-              if(keyedData[outboundIntersecionId].outbound == undefined)
-                keyedData[outboundIntersecionId].outbound = [];
-
-              keyedData[outboundIntersecionId].outbound.push(item.id);
-
-              if(keyedData[inboundIntersecionId] == undefined)
-                keyedData[inboundIntersecionId] = {};
-
-              if(keyedData[inboundIntersecionId].inbound == undefined)
-                keyedData[inboundIntersecionId].inbound = [];
-
-              keyedData[inboundIntersecionId].inbound.push(item.id);
-
+            var reference = this.SharedStreetsReference.decodeDelimited(reader);
+            this.addReference(reference);
           }
-
-          this.showIntersectionDetail();
+          this.showIntersectionLayer();
         }
-      });
-
-      request('./data/tiles/' + tileId + '.intersection.pbf').responseType('blob').get(  (error, response) => {
-        if (!error) {
-
-          var data = new Uint8Array(response);
-
-            // this.mapIntersectionData = response;
-            //
-            // response.features.forEach((item) => {
-            //
-            //   if(keyedData[item.properties.id] == undefined)
-            //     keyedData[item.properties.id] = {};
-            //
-            //   keyedData[item.properties.id].intersection = item;
-            //
-            // });
->>>>>>> ccdfbca... protobuf
-
-      var oReq = new XMLHttpRequest();
-      oReq.open("GET", "data/test3/11-602-770.reference.pbf", true);
-      oReq.responseType = "arraybuffer";
-
-      oReq.onload = (oEvent) =>  {
-        var msg = protos.SharedStreetsReference.decodeDelimited(new Uint8Array(oReq.response));
-        console.log(msg);
       };
 
-<<<<<<< HEAD
-      oReq.send();
-    });
-=======
+      referenceRequest.send();
+
+      // request().responseType('blob').get( (error, response) => {
+      //   if (!error) {
+      //
+      //     var arrayBuffer = response.response;
+      //     var data = new Uint8Array(arrayBuffer);
+      //     var reader = new protobuf.Reader(data);
+      //     while (reader.pos < reader.len) {
+      //
+      //         var item = this.SharedStreetsReference.decodeDelimited(reader);
+      //     }
+      //
+      //     this.showIntersectionDetail();
+      //   }
+      // });
+
+    //   request('./data/tiles/' + tileId + '.intersection.pbf').responseType('blob').get(  (error, response) => {
+    //     if (!error) {
+    //
+    //       var data = new Uint8Array(response);
+    //
+    //         // this.mapIntersectionData = response;
+    //         //
+    //         // response.features.forEach((item) => {
+    //         //
+    //         //   if(keyedData[item.properties.id] == undefined)
+    //         //     keyedData[item.properties.id] = {};
+    //         //
+    //         //   keyedData[item.properties.id].intersection = item;
+    //         //
+    //         // });
+    //
+    // });
+  }
   componentDidMount() {
     const { lng, lat, zoom, data, mapType } = this.state;
     var z = 11;
->>>>>>> ccdfbca... protobuf
 
     this.map = new mapboxgl.Map({
       container: this.mapContainer,
@@ -435,37 +434,33 @@ export default class Map extends React.Component {
     });
 
     map.on('moveend', () => {
-      var mapboxBounds = map.getBounds();
-      var bounds = [mapboxBounds.getWest(), mapboxBounds.getSouth(), mapboxBounds.getEast(), mapboxBounds.getNorth()]
-      var tiles = sphericalMercator.xyz(bounds, z);
-      for(var x = tiles.minX; x <= tiles.maxX; x++){
-        for(var y = tiles.minY; y <= tiles.maxY; y++){
-            var tileId = z + '-' + x + '-' + y;
-            this.addTile(tileId);
+      if(map.getZoom() > 11) {
+        var mapboxBounds = map.getBounds();
+        var bounds = [mapboxBounds.getWest(), mapboxBounds.getSouth(), mapboxBounds.getEast(), mapboxBounds.getNorth()]
+        var tiles = sphericalMercator.xyz(bounds, z);
+        for(var x = tiles.minX; x <= tiles.maxX; x++){
+          for(var y = tiles.minY; y <= tiles.maxY; y++){
+              var tileId = z + '-' + x + '-' + y;
+              this.addTile(tileId);
+          }
         }
       }
-
     });
 
     map.on('style.load', () => {
       this.mapLoaded = true;
-
-<<<<<<< HEAD
-    });
-
-
-=======
-      var mapboxBounds = map.getBounds();
-      var bounds = [mapboxBounds.getWest(), mapboxBounds.getSouth(), mapboxBounds.getEast(), mapboxBounds.getNorth()]
-      var tiles = sphericalMercator.xyz(bounds, z);
-      for(var x = tiles.minX; x <= tiles.maxX; x++){
-        for(var y = tiles.minY; y <= tiles.maxY; y++){
-            var tileId = z + '-' + x + '-' + y;
-            this.addTile(tileId);
+      if(map.getZoom() > 11) {
+        var mapboxBounds = map.getBounds();
+        var bounds = [mapboxBounds.getWest(), mapboxBounds.getSouth(), mapboxBounds.getEast(), mapboxBounds.getNorth()]
+        var tiles = sphericalMercator.xyz(bounds, z);
+        for(var x = tiles.minX; x <= tiles.maxX; x++){
+          for(var y = tiles.minY; y <= tiles.maxY; y++){
+              var tileId = z + '-' + x + '-' + y;
+              this.addTile(tileId);
+          }
         }
       }
->>>>>>> ccdfbca... protobuf
-
+    });
 
     map.on('load', () => {
         this.mapLoaded = true;
