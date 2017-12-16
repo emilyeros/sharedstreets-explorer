@@ -9,4 +9,4 @@ Data explorer for SharedStreets Referencing System
 
 
 
-![Explorer Screentshot](images/exmplore.png)
+![Explorer Screentshot](images/explorer.png)
