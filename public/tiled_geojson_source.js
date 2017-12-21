@@ -73,8 +73,9 @@ function TiledGeoJSONSource(id, specification, dispatcher, eventedParent) {
   // integer tile coordinates for better precision...
   this.reparseOverscaled = false;
 
-  // The tiles now have features binned so don't clip them.
-  this.isTileClipped = false;
+  // We have to set this for drawing of lines, etc
+  // See: https://github.com/mapbox/mapbox-gl-js/issues/5672
+  this.isTileClipped = true;
 }
 
 // We can't specify a relative URL here because it will be
