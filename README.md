@@ -3,9 +3,9 @@ Data explorer for SharedStreets Referencing System
 
 **Insrtuctions**
 
-1. Build PBF tiles set
+1. Create PBF tile set using [SharedStreets Builder](https://github.com/sharedstreets/sharedstreets-builder)
 2. Copy tiles to "public/data/tiles/"
-3. Launch explore "yarn start"
+3. Launch explorer "yarn start"
 
 
 
