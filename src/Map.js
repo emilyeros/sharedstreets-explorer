@@ -221,13 +221,35 @@ export default class Map extends React.Component {
 
     Object.keys(geometryIds).forEach(geometryId => {
       if(keyedData[geometryId]) {
-        keyedData[geometryId].data.properties['type'] = "geometry"
-        features.push(keyedData[geometryId].data);
+        features.push(this.generateGeometry(geometryId));
       }
     });
 
     var intersectionFeatureCollection = helpers.featureCollection(features);
     return intersectionFeatureCollection;
+  }
+
+  generateGeometry(geometryId) {
+
+    var keyedData = this.keyedData;
+
+    if(keyedData[geometryId] && keyedData[geometryId].data.latlons) {
+
+      var coordinates = [];
+
+      for(var i = 0; i < keyedData[geometryId].data.latlons.length; i = i + 2) {
+
+        var lat = keyedData[geometryId].data.latlons[i];
+        var lon = keyedData[geometryId].data.latlons[i+1];
+
+        coordinates.push([lon, lat]);
+      }
+
+      var geometry = helpers.lineString(coordinates);
+      geometry.properties.type = "geometry";
+      return geometry;
+    }
+
   }
 
   generateReferenceGeometries(referenceId, direction) {
@@ -303,6 +325,17 @@ export default class Map extends React.Component {
     }
   }
 
+  addGeometry(geometry) {
+
+      var keyedData = this.keyedData;
+
+      keyedData[geometry.id] = {};
+
+      keyedData[geometry.id].type = "geometry";
+      keyedData[geometry.id].data = geometry;
+
+  }
+
   addReference(reference) {
 
     var keyedData = this.keyedData;
@@ -375,6 +408,22 @@ export default class Map extends React.Component {
       };
 
       referenceRequest.send();
+
+      var geometryRequest = new XMLHttpRequest();
+      geometryRequest.open("GET", './data/tiles/' + tileId + '.geometry.pbf', true);
+      geometryRequest.responseType = "arraybuffer";
+
+      geometryRequest.onload = (oEvent) =>  {
+        if(geometryRequest.response.byteLength > 2000) { // hack for development env because react bootstrap code doesn't return 404s
+          var reader = protobuf.Reader.create(new Uint8Array(geometryRequest.response));
+          while (reader.pos < reader.len) {
+            var geometry = this.SharedStreetsGeometry.decodeDelimited(reader);
+            this.addGeometry(geometry);
+          }
+        }
+      };
+
+      geometryRequest.send();
 
       // request().responseType('blob').get( (error, response) => {
       //   if (!error) {
