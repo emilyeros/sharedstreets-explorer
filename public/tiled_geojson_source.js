@@ -62,7 +62,8 @@ function TiledGeoJSONSource(id, specification, dispatcher, eventedParent) {
   this.reparseOverscaled = true;
 	*/
 
-  this.minzoom = this.maxzoom = 10;
+  this.minzoom = this.maxzoom = 11;
+  this.maxzoom = 14;
 
   // Otherwise tiles > maxzoom would be requested again from the worker to give
   // it a chance to "reparse", for example in the context of geojson I guess

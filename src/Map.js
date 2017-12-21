@@ -52,7 +52,8 @@ export default class Map extends React.Component {
       this.map.addSource("streets-data", {
          "type": "tiled-geojson",
          "tiles": [
-           document.location.origin + "/data/nyc_tiles_combined/{z}-{x}-{y}.json"
+           //document.location.origin + "/data/nyc_tiles_combined/{z}-{x}-{y}.json"
+           document.location.origin + "/data/nyc_full/"
          ]
       });
 
@@ -103,6 +104,7 @@ export default class Map extends React.Component {
       });
 */
 
+      if (0)
       map.addLayer({
         'id': 'blah3',
         'type': 'symbol',
@@ -128,7 +130,7 @@ export default class Map extends React.Component {
       });
 
       // Lines from the SSRs (not geometry)
-      /*
+      if (1)
       map.addLayer({
         'id': 'blah4',
         'type': 'line',
@@ -139,7 +141,6 @@ export default class Map extends React.Component {
           'line-color': '#f08',
         }
       });
-      */
 
     });
 
