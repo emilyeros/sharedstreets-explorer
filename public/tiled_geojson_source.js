@@ -43,11 +43,12 @@ function TiledGeoJSONSource(id, specification, dispatcher, eventedParent) {
   this.workerID = undefined;
   var shimpatcher = {
     send: (type, data, callback, targetID, buffers) => {
+      console.log('Shimpatcher dispatch workerID: ' + this.workerID);
       if (targetID !== undefined && targetID != this.workerID) throw "xxx";
       return this.workerID = dispatcher.send(type, data, callback, this.workerID, buffers);
     }
   };
-  VectorTileSource.call(this, id, specification, dispatcher, eventedParent);
+  VectorTileSource.call(this, id, specification, shimpatcher, eventedParent);
 
   // Overrides type = 'vector' set by VectorTileSource, this is important because
   // it is the type that goes into messages to route to the correct worker.
