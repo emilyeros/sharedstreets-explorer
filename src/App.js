@@ -95,7 +95,7 @@ class App extends Component {
             <Sider theme="dark" width={250}>
               <Content style={{ padding: '10px'}} >
                 <Row gutter={8}><Col span={24} ><img src="/ss_logo.png" width={40} style={{padding: '5px', float: 'left',
-                'vertical-align': 'middle'}}/><h2 style={{color: 'rgba(255, 255, 255, 0.67)', 'margin-top': '8px'}}>SharedStreets</h2></Col></Row>
+                verticalAlign: 'middle'}}/><h2 style={{color: 'rgba(255, 255, 255, 0.67)', marginTop: '8px'}}>SharedStreets</h2></Col></Row>
               </Content>
               <Menu
                 mode="inline"
