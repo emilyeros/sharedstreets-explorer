@@ -1,17 +1,11 @@
 import React from 'react'
-import ReactDOM from 'react-dom'
 import mapboxgl from 'mapbox-gl'
-import {request as request} from 'd3-request';
-import { map as _map} from 'underscore';
-import { filter as _filter} from 'underscore';
-import { first as _first} from 'underscore';
-import { last as _last} from 'underscore';
-import { Reader, load as protoLoad }  from "protobufjs";
 import helpers from "@turf/helpers";
 import lineOffset from "@turf/line-offset";
 import destination from "@turf/destination";
 import SphericalMercator from "@mapbox/sphericalmercator";
 import protobuf from "protobufjs"
+import SharedStreetsProto from "sharedstreets-pbf/proto/sharedstreets";
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHJhbnNwb3J0cGFydG5lcnNoaXAiLCJhIjoiY2oyZ2R1aTk2MDdteDMyb2dibXpuMjdweiJ9.RtukedapVNqEAsYU-f1Vaw';
 
@@ -25,9 +19,9 @@ export default class Map extends React.Component {
     super(props);
 
     this.state = {
-      lng: -74.00390625,
-      lat:  40.58058466,
-      zoom: 14.0
+      lng:  -122.39514769751909,
+      lat: 37.76923145210515,
+      zoom: 12.0
     };
   }
 
@@ -423,15 +417,10 @@ export default class Map extends React.Component {
 
     var map = this.map;
 
-    protobuf.load("sharedstreets.proto", (err, root) => {
-        if (err)
-            throw err;
-
-        // Obtain a message type
-        this.SharedStreetsReference = root.lookupType("io.sharedstreets.SharedStreetsReference");
-        this.SharedStreetsIntersection = root.lookupType("io.sharedstreets.SharedStreetsIntersection");
-        this.SharedStreetsGeometry = root.lookupType("io.sharedstreets.SharedStreetsGeometry");
-    });
+    // Obtain a message type
+    this.SharedStreetsReference = SharedStreetsProto.SharedStreetsReference;
+    this.SharedStreetsIntersection = SharedStreetsProto.SharedStreetsIntersection;
+    this.SharedStreetsGeometry = SharedStreetsProto.SharedStreetsGeometry;
 
     map.on('moveend', () => {
       if(map.getZoom() > 11) {

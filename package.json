@@ -9,7 +9,7 @@
     "d3-request": "^1.0.5",
     "deck.gl": "^4.1.0",
     "immutable": "^3.8.1",
-    "jsts": "./jsts-1.1.2.tgz",
+    "jsts": "1.1.2",
     "luma.gl": "^4.0.1",
     "mapbox-gl": "^0.41.0",
     "protobufjs": "^6.8.3",
@@ -17,6 +17,7 @@
     "react-dom": "^15.6.1",
     "react-map-gl": "^3.0.0",
     "react-scripts": "1.0.11",
+    "sharedstreets-pbf": "sharedstreets/sharedstreets-pbf",
     "underscore": "^1.8.3"
   },
   "scripts": {
@@ -24,5 +25,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": ["react-app"]
   }
 }
