@@ -17,7 +17,7 @@
     "react-dom": "^15.6.1",
     "react-map-gl": "^3.0.0",
     "react-scripts": "1.0.11",
-    "sharedstreets-pbf": "sharedstreets/sharedstreets-pbf",
+    "sharedstreets-pbf": "^0.7.2",
     "underscore": "^1.8.3"
   },
   "scripts": {
