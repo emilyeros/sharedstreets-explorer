@@ -1,6 +1,6 @@
 import React from 'react'
 import mapboxgl from 'mapbox-gl'
-import helpers from "@turf/helpers";
+import { point, lineString, polygon, feature, featureCollection } from "@turf/helpers";
 import lineOffset from "@turf/line-offset";
 import destination from "@turf/destination";
 import SphericalMercator from "@mapbox/sphericalmercator";
@@ -15,7 +15,7 @@ const sphericalMercator = new SphericalMercator({
 
 export default class Map extends React.Component {
 
-  constructor(props: Props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -66,11 +66,11 @@ export default class Map extends React.Component {
 
   generateIntersectionFeatures() {
     var keyedData = this.keyedData;
-    var intersections = {"type" : "FeatureCollection", "features": []};
+    var intersections = featureCollection([]);
 
     for(var itemId in keyedData) {
-      if(keyedData[itemId].type == "intersection") {
-          var feature = {"type": "Feature","properties": {"id": itemId},"geometry": {"type": "Point","coordinates": [keyedData[itemId].data.lon,keyedData[itemId].data.lat]}};
+      if(keyedData[itemId].type === "intersection") {
+          var feature = point([keyedData[itemId].data.lon,keyedData[itemId].data.lat], {id: itemId})
           intersections.features.push(feature);
       }
     }
@@ -81,7 +81,7 @@ export default class Map extends React.Component {
 
   showIntersectionDetail(intersectionId) {
 
-    var intersectionDetailData = {"type" : "FeatureCollection", "features": []};
+    var intersectionDetailData = featureCollection([]);
 
     if(!this.map.getLayer("intersection-detail-outbound-arrow")) {
 
@@ -177,7 +177,7 @@ export default class Map extends React.Component {
       // only show outbound for complete map
       showInbound = false;
       for(var id in keyedData) {
-        if(keyedData[id].type == "intersection")
+        if(keyedData[id].type === "intersection")
           ids.push(intersectionId);
       }
     }
@@ -220,7 +220,7 @@ export default class Map extends React.Component {
       }
     });
 
-    var intersectionFeatureCollection = helpers.featureCollection(features);
+    var intersectionFeatureCollection = featureCollection(features);
     return intersectionFeatureCollection;
   }
 
@@ -238,7 +238,7 @@ export default class Map extends React.Component {
     try {
 
       // draw dashed/offset reference line
-      var line = helpers.lineString(lineCoordinates);
+      var line = lineString(lineCoordinates);
       var offsetLine = lineOffset(line, 1, "meters");
 
       var features = []
@@ -250,45 +250,45 @@ export default class Map extends React.Component {
         var bearing = reference.locationReferences[0].outboundBearing > 180 ? reference.locationReferences[0].outboundBearing - 360 : reference.locationReferences[0].outboundBearing;
 
         // find bearing point (20 meters out at bearing)
-        var bearingPoint1 = destination(helpers.point([reference.locationReferences[0].lon, reference.locationReferences[0].lat]), 0.01, bearing, "kilometers");
+        var bearingPoint1 = destination(point([reference.locationReferences[0].lon, reference.locationReferences[0].lat]), 0.01, bearing, "kilometers");
 
         // offset bearing point line to align with dashed refernce line
-        var bearingPointLine = helpers.lineString([[reference.locationReferences[0].lon, reference.locationReferences[0].lat], bearingPoint1.geometry.coordinates]);
+        var bearingPointLine = lineString([[reference.locationReferences[0].lon, reference.locationReferences[0].lat], bearingPoint1.geometry.coordinates]);
         var offsetBearingPointLine = lineOffset(bearingPointLine, 1, "meters");
 
         // offset far point of triangle bases
-        var bearingPoint2 = destination(helpers.point([reference.locationReferences[0].lon, reference.locationReferences[0].lat]), 0.002, bearing + 90, "kilometers");
+        var bearingPoint2 = destination(point([reference.locationReferences[0].lon, reference.locationReferences[0].lat]), 0.002, bearing + 90, "kilometers");
 
         // build arrow from points
         var arrowCoords  = [[offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, [reference.locationReferences[0].lon, reference.locationReferences[0].lat], offsetBearingPointLine.geometry.coordinates[1]]];
-        var inboundBearingArrow = helpers.polygon(arrowCoords);
+        var inboundBearingArrow = polygon(arrowCoords);
 
 
 
-        features.push(helpers.feature(inboundBearingArrow.geometry, {"id" : referenceId, "type": "outbound-arrow"}));
+        features.push(feature(inboundBearingArrow.geometry, {"id" : referenceId, "type": "outbound-arrow"}));
 
         // draw triangle showing bearing point direction
         // calc bearing as -180 to 180 degrees
         bearing = reference.locationReferences[1].inboundBearing > 0 ? reference.locationReferences[1].inboundBearing - 180 : reference.locationReferences[1].inboundBearing + 180;
 
         // find bearing point (20 meters out at bearing)
-        bearingPoint1 = destination(helpers.point([reference.locationReferences[1].lon, reference.locationReferences[1].lat]), 0.01, bearing, "kilometers");
+        bearingPoint1 = destination(point([reference.locationReferences[1].lon, reference.locationReferences[1].lat]), 0.01, bearing, "kilometers");
 
         // offset bearing point line to align with dashed refernce line
-        bearingPointLine = helpers.lineString([bearingPoint1.geometry.coordinates, [reference.locationReferences[1].lon, reference.locationReferences[1].lat]]);
+        bearingPointLine = lineString([bearingPoint1.geometry.coordinates, [reference.locationReferences[1].lon, reference.locationReferences[1].lat]]);
         offsetBearingPointLine = lineOffset(bearingPointLine, 1, "meters");
 
         // offset far point of triangle bases
-        bearingPoint2 = destination(helpers.point(bearingPoint1.geometry.coordinates), 0.002, bearing - 90, "kilometers");
+        bearingPoint2 = destination(point(bearingPoint1.geometry.coordinates), 0.002, bearing - 90, "kilometers");
 
         // build arrow from points
         arrowCoords  = [[bearingPoint1.geometry.coordinates, offsetBearingPointLine.geometry.coordinates[1], bearingPoint2.geometry.coordinates, bearingPoint1.geometry.coordinates]];
-        var outboundBearingArrow = helpers.polygon(arrowCoords);
+        var outboundBearingArrow = polygon(arrowCoords);
 
-        features.push(helpers.feature(outboundBearingArrow.geometry, {"id" : referenceId, "type": "inbound-arrow"}));
+        features.push(feature(outboundBearingArrow.geometry, {"id" : referenceId, "type": "inbound-arrow"}));
       }
 
-      features.push(helpers.feature(offsetLine.geometry, {"id" : referenceId, "type": direction + "-line"}));
+      features.push(feature(offsetLine.geometry, {"id" : referenceId, "type": direction + "-line"}));
 
       return features;
     }
@@ -309,7 +309,7 @@ export default class Map extends React.Component {
     var outboundIntersecionId = reference.locationReferences[0].intersectionId;
     var inboundIntersecionId = reference.locationReferences[reference.locationReferences.length - 1].intersectionId;
 
-    if(keyedData[outboundIntersecionId] == undefined) {
+    if(keyedData[outboundIntersecionId] === undefined) {
       keyedData[outboundIntersecionId] = {};
       keyedData[outboundIntersecionId].type = "intersection";
       keyedData[outboundIntersecionId].data = {};
@@ -318,12 +318,12 @@ export default class Map extends React.Component {
     }
 
 
-    if(keyedData[outboundIntersecionId].outbound == undefined)
+    if(keyedData[outboundIntersecionId].outbound === undefined)
       keyedData[outboundIntersecionId].outbound = [];
 
     keyedData[outboundIntersecionId].outbound.push(reference.id);
 
-    if(keyedData[inboundIntersecionId] == undefined) {
+    if(keyedData[inboundIntersecionId] === undefined) {
       keyedData[inboundIntersecionId] = {};
       keyedData[inboundIntersecionId].type = "intersection";
       keyedData[inboundIntersecionId].data = {};
@@ -332,7 +332,7 @@ export default class Map extends React.Component {
     }
 
 
-    if(keyedData[inboundIntersecionId].inbound == undefined)
+    if(keyedData[inboundIntersecionId].inbound === undefined)
       keyedData[inboundIntersecionId].inbound = [];
 
     keyedData[inboundIntersecionId].inbound.push(reference.id);
@@ -340,7 +340,7 @@ export default class Map extends React.Component {
 
   addTile(tileId) {
 
-      if(this.loadedTiles == undefined)
+      if(this.loadedTiles === undefined)
         this.loadedTiles = []
 
       // bail if tile already loaded
@@ -349,7 +349,7 @@ export default class Map extends React.Component {
 
       this.loadedTiles[tileId] = true;
 
-      if(this.keyedData == undefined)
+      if(this.keyedData === undefined)
         this.keyedData = [];
 
 
@@ -463,9 +463,9 @@ export default class Map extends React.Component {
     const { filter } = this.props;
 
     if(this.map) {
-      if(this.useMap != filter.useMap) {
+      if(this.useMap !== filter.useMap) {
         this.useMap = filter.useMap;
-        if(this.useMap == false) {
+        if(this.useMap === false) {
           this.map.setStyle('mapbox://styles/transportpartnership/cj8wm5xa0g8ql2smvduavi5gr');
 
         } else {
