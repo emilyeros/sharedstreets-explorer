@@ -4,8 +4,7 @@ import { point, lineString, polygon, feature, featureCollection } from "@turf/he
 import lineOffset from "@turf/line-offset";
 import destination from "@turf/destination";
 import SphericalMercator from "@mapbox/sphericalmercator";
-import protobuf from "protobufjs"
-import SharedStreetsProto from "sharedstreets-pbf/proto/sharedstreets";
+import * as sharedstreetsPbf from "sharedstreets-pbf";
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHJhbnNwb3J0cGFydG5lcnNoaXAiLCJhIjoiY2oyZ2R1aTk2MDdteDMyb2dibXpuMjdweiJ9.RtukedapVNqEAsYU-f1Vaw';
 
@@ -359,11 +358,13 @@ export default class Map extends React.Component {
 
       referenceRequest.onload = (oEvent) =>  {
         if(referenceRequest.response.byteLength > 2000) { // hack for development env because react bootstrap code doesn't return 404s
-          var reader = protobuf.Reader.create(new Uint8Array(referenceRequest.response));
-          while (reader.pos < reader.len) {
-            var reference = this.SharedStreetsReference.decodeDelimited(reader);
+          var references = sharedstreetsPbf.readBuffer(
+            new Uint8Array(referenceRequest.response),
+            sharedstreetsPbf.SharedStreetsProto.SharedStreetsReference
+          );
+          references.forEach(reference => {
             this.addReference(reference);
-          }
+          });
           this.showIntersectionLayer();
         }
       };
@@ -416,11 +417,6 @@ export default class Map extends React.Component {
 
 
     var map = this.map;
-
-    // Obtain a message type
-    this.SharedStreetsReference = SharedStreetsProto.SharedStreetsReference;
-    this.SharedStreetsIntersection = SharedStreetsProto.SharedStreetsIntersection;
-    this.SharedStreetsGeometry = SharedStreetsProto.SharedStreetsGeometry;
 
     map.on('moveend', () => {
       if(map.getZoom() > 11) {
