@@ -7976,9 +7976,9 @@ shallowequal@^1.0.1:
   version "1.0.2"
   resolved "https://unpm.uberinternal.com/shallowequal/-/shallowequal-1.0.2.tgz#1561dbdefb8c01408100319085764da3fcf83f8f"
 
-sharedstreets-pbf@sharedstreets/sharedstreets-pbf:
-  version "0.6.0"
-  resolved "https://codeload.github.com/sharedstreets/sharedstreets-pbf/tar.gz/3848451c356fb21cd7825fe95d0f7e40791040bb"
+sharedstreets-pbf@^0.7.2:
+  version "0.7.2"
+  resolved "https://unpm.uberinternal.com/sharedstreets-pbf/-/sharedstreets-pbf-0.7.2.tgz#e0fbff1588b7e908dc22d070c9c982399dff8737"
   dependencies:
     protobufjs "6.x"
     sharedstreets-types "1.x"
