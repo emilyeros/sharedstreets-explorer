@@ -1,0 +1,9 @@
+.vscode
+.DS_STORE
+node_modules
+.module-cache
+*.log*
+build
+dist
+src/public/data
+ui.code-workspace

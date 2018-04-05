@@ -1,0 +1,17 @@
+.colorbox {
+    float: left;
+    width: 20px;
+    height: 20px;
+    margin: 5px;
+    border: 1px solid rgba(0, 0, 0, .2);
+  }
+  
+  .blue {
+    background: rgba(0,0, 255, 0.5);
+  }
+  
+  
+  .red {
+    background: rgba(255,0,0, 0.5);
+  }
+  

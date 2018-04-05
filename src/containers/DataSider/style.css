@@ -1,0 +1,9 @@
+
+
+ .title {
+    padding:'8px';
+    
+    &-collapsed {
+        display: none;
+    }
+}
