@@ -26,8 +26,10 @@ mkdir -p src/public/data/tiles/curb/
 cp [path to curb tile files] src/public/data/tiles/curb/
 
 # edit src/config.ts
-# change  export const EVENT_FILE_TYPE = 'curb';  to export const EVENT_FILE_TYPE = '{name of file type e.g. events}';
-# export const EVENT_FILE_TYPE = 'events';
+# change  export const EVENT_FILE_TYPE = 'curb';  to 
+# export const EVENT_FILE_TYPE = '{name of file type e.g. events}';
+# e.g. events:
+# events: export const EVENT_FILE_TYPE = 'events';
 #
 # change PICKUP_EVENT_LABEL and DROPOFF_EVENT_LABEL to match event label used input data
 
