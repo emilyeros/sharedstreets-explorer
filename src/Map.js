@@ -292,6 +292,7 @@ export default class Map extends React.Component {
       return features;
     }
     catch (exception){
+      console.warn(exception);
       return null;
     }
   }

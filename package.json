@@ -4,9 +4,9 @@
   "private": true,
   "dependencies": {
     "@mapbox/sphericalmercator": "^1.0.5",
-    "@turf/destination": "*",
-    "@turf/helpers": "*",
-    "@turf/line-offset": "*",
+    "@turf/destination": "^4",
+    "@turf/helpers": "^4",
+    "@turf/line-offset": "^4",
     "antd": "^2.12.6",
     "d3-request": "^1.0.5",
     "deck.gl": "^4.1.0",
